@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Trada"
+version = "1.0.0"
+id = "artifacts/trada"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23754
+
+[services.development]
+run = "pnpm --filter @workspace/trada run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/trada", "run", "build" ]
+publicDir = "artifacts/trada/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23754"
+BASE_PATH = "/"

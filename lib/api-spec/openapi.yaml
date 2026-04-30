@@ -3,20 +3,36 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Trada AI trading platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: wallet
+    description: Wallet and ledger
+  - name: agents
+    description: AI trading agents
+  - name: rentals
+    description: Agent rentals
+  - name: trades
+    description: Trade history
+  - name: notifications
+    description: Notification preferences
+  - name: admin
+    description: Admin operations
+  - name: dashboard
+    description: Dashboard summaries
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +40,674 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── AUTH ─────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── DASHBOARD ────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary (balances, active rentals, recent trades)
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Recent activity timeline
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Activity items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityFeed"
+
+  /dashboard/performance:
+    get:
+      operationId: getPerformance
+      tags: [dashboard]
+      summary: Portfolio performance over time
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Performance data points
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerformanceData"
+
+  # ── WALLET ───────────────────────────────────────────────────────────────
+  /wallet:
+    get:
+      operationId: getWallet
+      tags: [wallet]
+      summary: Get wallet balance and info
+      responses:
+        "200":
+          description: Wallet details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+
+  /wallet/deposit-address:
+    get:
+      operationId: getDepositAddress
+      tags: [wallet]
+      summary: Get deposit address for a network
+      parameters:
+        - name: network
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [ETH, BTC, USDT]
+      responses:
+        "200":
+          description: Deposit address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositAddress"
+
+  /wallet/transactions:
+    get:
+      operationId: listTransactions
+      tags: [wallet]
+      summary: List transactions
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [deposit, withdrawal, trade_fee, rental_fee, adjustment]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Transaction list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionList"
+
+  /wallet/withdraw:
+    post:
+      operationId: requestWithdrawal
+      tags: [wallet]
+      summary: Request a withdrawal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawalRequestBody"
+      responses:
+        "201":
+          description: Withdrawal requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalRequest"
+        "400":
+          description: Insufficient balance or invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── AGENTS ───────────────────────────────────────────────────────────────
+  /agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: List available trading agents
+      responses:
+        "200":
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentList"
+
+  /agents/{agentId}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      summary: Get agent details and performance history
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── RENTALS ──────────────────────────────────────────────────────────────
+  /rentals:
+    get:
+      operationId: listRentals
+      tags: [rentals]
+      summary: List user's rentals
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, active, paused, expired, cancelled]
+      responses:
+        "200":
+          description: Rental list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RentalList"
+
+    post:
+      operationId: createRental
+      tags: [rentals]
+      summary: Rent an agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRentalBody"
+      responses:
+        "201":
+          description: Rental created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rental"
+        "400":
+          description: Insufficient balance or invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rentals/{rentalId}:
+    get:
+      operationId: getRental
+      tags: [rentals]
+      summary: Get rental details
+      parameters:
+        - name: rentalId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rental details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RentalDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rentals/{rentalId}/renew:
+    post:
+      operationId: renewRental
+      tags: [rentals]
+      summary: Renew an expiring or expired rental
+      parameters:
+        - name: rentalId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenewRentalBody"
+      responses:
+        "200":
+          description: Renewed rental
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rental"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rentals/{rentalId}/cancel:
+    post:
+      operationId: cancelRental
+      tags: [rentals]
+      summary: Cancel an active rental
+      parameters:
+        - name: rentalId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rental"
+
+  # ── TRADES ───────────────────────────────────────────────────────────────
+  /trades:
+    get:
+      operationId: listTrades
+      tags: [trades]
+      summary: List user's trade history
+      parameters:
+        - name: rentalId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, executed, failed, skipped]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Trade list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeList"
+
+  /trades/{tradeId}:
+    get:
+      operationId: getTrade
+      tags: [trades]
+      summary: Get trade details including AI signal
+      parameters:
+        - name: tradeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Trade details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+  /notifications/preferences:
+    get:
+      operationId: getNotificationPreferences
+      tags: [notifications]
+      summary: Get notification preferences
+      responses:
+        "200":
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+
+    put:
+      operationId: updateNotificationPreferences
+      tags: [notifications]
+      summary: Update notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferencesBody"
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+
+  # ── ADMIN ─────────────────────────────────────────────────────────────────
+  /admin/dashboard:
+    get:
+      operationId: getAdminDashboard
+      tags: [admin]
+      summary: Admin dashboard overview
+      responses:
+        "200":
+          description: Admin dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDashboard"
+
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: List all users
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserList"
+
+  /admin/withdrawals:
+    get:
+      operationId: listAdminWithdrawals
+      tags: [admin]
+      summary: List pending withdrawal requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [requested, approved, broadcasted, completed, failed, rejected]
+      responses:
+        "200":
+          description: Withdrawal list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalList"
+
+  /admin/withdrawals/{withdrawalId}/approve:
+    post:
+      operationId: approveWithdrawal
+      tags: [admin]
+      summary: Approve a withdrawal request
+      parameters:
+        - name: withdrawalId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalRequest"
+
+  /admin/withdrawals/{withdrawalId}/reject:
+    post:
+      operationId: rejectWithdrawal
+      tags: [admin]
+      summary: Reject a withdrawal request
+      parameters:
+        - name: withdrawalId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectWithdrawalBody"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalRequest"
+
+  /admin/rentals/{rentalId}/pause:
+    post:
+      operationId: pauseRental
+      tags: [admin]
+      summary: Pause a rental (admin)
+      parameters:
+        - name: rentalId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paused
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rental"
+
+  /admin/rentals/{rentalId}/resume:
+    post:
+      operationId: resumeRental
+      tags: [admin]
+      summary: Resume a paused rental (admin)
+      parameters:
+        - name: rentalId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rental"
+
+  /admin/rentals/{rentalId}/reset-circuit-breaker:
+    post:
+      operationId: resetCircuitBreaker
+      tags: [admin]
+      summary: Reset circuit breaker for a rental (admin)
+      parameters:
+        - name: rentalId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Circuit breaker reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rental"
+
+  /admin/alerts:
+    get:
+      operationId: listAdminAlerts
+      tags: [admin]
+      summary: List system alerts
+      parameters:
+        - name: resolved
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertList"
+
+  /admin/alerts/{alertId}/resolve:
+    post:
+      operationId: resolveAlert
+      tags: [admin]
+      summary: Resolve a system alert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +715,713 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    # ── AUTH ────────────────────────────────────────────────────────────────
+    RegisterBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+      required: [email, password, name]
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required: [email, password]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required: [token, user]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, name, role, createdAt]
+
+    # ── DASHBOARD ───────────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      properties:
+        walletBalance:
+          type: number
+        walletCurrency:
+          type: string
+        activeRentals:
+          type: integer
+        totalTrades:
+          type: integer
+        successfulTrades:
+          type: integer
+        totalPnl:
+          type: number
+        pendingWithdrawals:
+          type: integer
+        recentTrades:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trade"
+        circuitBreakerTripped:
+          type: integer
+      required:
+        - walletBalance
+        - walletCurrency
+        - activeRentals
+        - totalTrades
+        - successfulTrades
+        - totalPnl
+        - pendingWithdrawals
+        - recentTrades
+        - circuitBreakerTripped
+
+    ActivityFeed:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityItem"
+      required: [items]
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [trade_executed, trade_failed, deposit_confirmed, withdrawal_requested, withdrawal_completed, rental_activated, rental_expired, circuit_breaker_tripped]
+        title:
+          type: string
+        description:
+          type: string
+        amount:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, type, title, description, createdAt]
+
+    PerformanceData:
+      type: object
+      properties:
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformancePoint"
+        totalReturn:
+          type: number
+        winRate:
+          type: number
+      required: [points, totalReturn, winRate]
+
+    PerformancePoint:
+      type: object
+      properties:
+        date:
+          type: string
+        balance:
+          type: number
+        pnl:
+          type: number
+      required: [date, balance, pnl]
+
+    # ── WALLET ──────────────────────────────────────────────────────────────
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        balance:
+          type: number
+        currency:
+          type: string
+        lockedBalance:
+          type: number
+        totalDeposited:
+          type: number
+        totalWithdrawn:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, balance, currency, lockedBalance, totalDeposited, totalWithdrawn, createdAt]
+
+    DepositAddress:
+      type: object
+      properties:
+        address:
+          type: string
+        network:
+          type: string
+        qrCode:
+          type: string
+          nullable: true
+        memo:
+          type: string
+          nullable: true
+      required: [address, network]
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [deposit, withdrawal, trade_fee, rental_fee, adjustment]
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        description:
+          type: string
+        txHash:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, type, amount, currency, status, description, createdAt]
+
+    TransactionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+        total:
+          type: integer
+        offset:
+          type: integer
+        limit:
+          type: integer
+      required: [items, total, offset, limit]
+
+    WithdrawalRequestBody:
+      type: object
+      properties:
+        amount:
+          type: number
+          minimum: 0.01
+        address:
+          type: string
+        network:
+          type: string
+          enum: [ETH, BTC, USDT]
+        memo:
+          type: string
+      required: [amount, address, network]
+
+    WithdrawalRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        address:
+          type: string
+        network:
+          type: string
+        status:
+          type: string
+          enum: [requested, approved, broadcasted, completed, failed, rejected]
+        rejectionReason:
+          type: string
+          nullable: true
+        txHash:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, amount, currency, address, network, status, createdAt, updatedAt]
+
+    WithdrawalList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WithdrawalRequest"
+        total:
+          type: integer
+      required: [items, total]
+
+    RejectWithdrawalBody:
+      type: object
+      properties:
+        reason:
+          type: string
+      required: [reason]
+
+    # ── AGENTS ──────────────────────────────────────────────────────────────
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        symbol:
+          type: string
+        strategy:
+          type: string
+        riskLevel:
+          type: string
+          enum: [low, medium, high]
+        rentalPricePerDay:
+          type: number
+        minBalance:
+          type: number
+        winRate:
+          type: number
+        totalTrades:
+          type: integer
+        avgReturn:
+          type: number
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - description
+        - symbol
+        - strategy
+        - riskLevel
+        - rentalPricePerDay
+        - minBalance
+        - winRate
+        - totalTrades
+        - avgReturn
+        - isActive
+        - createdAt
+
+    AgentList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Agent"
+      required: [items]
+
+    AgentDetail:
+      allOf:
+        - $ref: "#/components/schemas/Agent"
+        - type: object
+          properties:
+            recentPerformance:
+              type: array
+              items:
+                $ref: "#/components/schemas/PerformancePoint"
+          required: [recentPerformance]
+
+    # ── RENTALS ─────────────────────────────────────────────────────────────
+    Rental:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        agentId:
+          type: string
+        agentName:
+          type: string
+        status:
+          type: string
+          enum: [pending, active, paused, expired, cancelled]
+        durationDays:
+          type: integer
+        totalCost:
+          type: number
+        startAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        circuitBreakerTripped:
+          type: boolean
+        consecutiveFailures:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - agentId
+        - agentName
+        - status
+        - durationDays
+        - totalCost
+        - circuitBreakerTripped
+        - consecutiveFailures
+        - createdAt
+
+    RentalList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rental"
+        total:
+          type: integer
+      required: [items, total]
+
+    RentalDetail:
+      allOf:
+        - $ref: "#/components/schemas/Rental"
+        - type: object
+          properties:
+            agent:
+              $ref: "#/components/schemas/Agent"
+            recentTrades:
+              type: array
+              items:
+                $ref: "#/components/schemas/Trade"
+          required: [agent, recentTrades]
+
+    CreateRentalBody:
+      type: object
+      properties:
+        agentId:
+          type: string
+        durationDays:
+          type: integer
+          enum: [7, 30, 90]
+      required: [agentId, durationDays]
+
+    RenewRentalBody:
+      type: object
+      properties:
+        durationDays:
+          type: integer
+          enum: [7, 30, 90]
+      required: [durationDays]
+
+    # ── TRADES ──────────────────────────────────────────────────────────────
+    Trade:
+      type: object
+      properties:
+        id:
+          type: string
+        rentalId:
+          type: string
+        agentId:
+          type: string
+        agentName:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell, hold]
+        status:
+          type: string
+          enum: [pending, executed, failed, skipped]
+        entryPrice:
+          type: number
+          nullable: true
+        exitPrice:
+          type: number
+          nullable: true
+        quantity:
+          type: number
+          nullable: true
+        pnl:
+          type: number
+          nullable: true
+        signalConfidence:
+          type: number
+          nullable: true
+        failureReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - rentalId
+        - agentId
+        - agentName
+        - symbol
+        - side
+        - status
+        - createdAt
+
+    TradeDetail:
+      allOf:
+        - $ref: "#/components/schemas/Trade"
+        - type: object
+          properties:
+            signalRationale:
+              type: string
+              nullable: true
+            rawSignal:
+              type: object
+              nullable: true
+              additionalProperties: true
+            exchangeResponse:
+              type: object
+              nullable: true
+              additionalProperties: true
+          required: []
+
+    TradeList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trade"
+        total:
+          type: integer
+        offset:
+          type: integer
+        limit:
+          type: integer
+      required: [items, total, offset, limit]
+
+    # ── NOTIFICATIONS ───────────────────────────────────────────────────────
+    NotificationPreferences:
+      type: object
+      properties:
+        userId:
+          type: string
+        emailEnabled:
+          type: boolean
+        telegramEnabled:
+          type: boolean
+        telegramChatId:
+          type: string
+          nullable: true
+        notifyOnDeposit:
+          type: boolean
+        notifyOnWithdrawal:
+          type: boolean
+        notifyOnTradeExecuted:
+          type: boolean
+        notifyOnTradeFailed:
+          type: boolean
+        notifyOnRentalExpiry:
+          type: boolean
+        notifyOnCircuitBreaker:
+          type: boolean
+      required:
+        - userId
+        - emailEnabled
+        - telegramEnabled
+        - notifyOnDeposit
+        - notifyOnWithdrawal
+        - notifyOnTradeExecuted
+        - notifyOnTradeFailed
+        - notifyOnRentalExpiry
+        - notifyOnCircuitBreaker
+
+    NotificationPreferencesBody:
+      type: object
+      properties:
+        emailEnabled:
+          type: boolean
+        telegramEnabled:
+          type: boolean
+        telegramChatId:
+          type: string
+          nullable: true
+        notifyOnDeposit:
+          type: boolean
+        notifyOnWithdrawal:
+          type: boolean
+        notifyOnTradeExecuted:
+          type: boolean
+        notifyOnTradeFailed:
+          type: boolean
+        notifyOnRentalExpiry:
+          type: boolean
+        notifyOnCircuitBreaker:
+          type: boolean
+
+    # ── ADMIN ────────────────────────────────────────────────────────────────
+    AdminDashboard:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        activeRentals:
+          type: integer
+        totalTradesLast24h:
+          type: integer
+        failedTradesLast24h:
+          type: integer
+        pendingWithdrawals:
+          type: integer
+        pendingWithdrawalAmount:
+          type: number
+        circuitBreakersTripped:
+          type: integer
+        unresolvedAlerts:
+          type: integer
+        recentAlerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        systemHealth:
+          type: string
+          enum: [healthy, degraded, critical]
+      required:
+        - totalUsers
+        - activeRentals
+        - totalTradesLast24h
+        - failedTradesLast24h
+        - pendingWithdrawals
+        - pendingWithdrawalAmount
+        - circuitBreakersTripped
+        - unresolvedAlerts
+        - recentAlerts
+        - systemHealth
+
+    AdminUserList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUser"
+        total:
+          type: integer
+      required: [items, total]
+
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+        walletBalance:
+          type: number
+        activeRentals:
+          type: integer
+        totalTrades:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, name, role, walletBalance, activeRentals, totalTrades, createdAt]
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [circuit_breaker_tripped, signal_generation_failed, trade_execution_failed, unusual_withdrawal, cron_stalled]
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        title:
+          type: string
+        message:
+          type: string
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties: true
+        resolved:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, type, severity, title, message, resolved, createdAt]
+
+    AlertList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        total:
+          type: integer
+      required: [items, total]
