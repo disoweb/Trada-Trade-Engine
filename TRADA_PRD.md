@@ -1,0 +1,249 @@
+# Trada – Product Requirements Document (PRD)
+
+**Version:** 1.0  
+**Status:** Final Draft  
+**Owner:** Product Team  
+**Target Launch:** MVP (Phase 1 – Shared Hosting)  
+**Last Updated:** 2026-04-24
+
+---
+
+## Table of Contents
+
+1. [Executive Summary](#1-executive-summary)
+2. [Problem Statement](#2-problem-statement)
+3. [Target Users & Personas](#3-target-users--personas)
+4. [Goals & Success Metrics](#4-goals--success-metrics)
+5. [Key Features (User Stories & Epics)](#5-key-features-user-stories--epics)
+6. [Functional Requirements by Domain](#6-functional-requirements-by-domain)
+   - 6.1 User Management
+   - 6.2 Wallet & Ledger
+   - 6.3 Rental Management
+   - 6.4 Trading Engine
+   - 6.5 AI Signal Handling
+   - 6.6 Notifications
+   - 6.7 Admin & Compliance
+7. [Non-Functional Requirements](#7-non-functional-requirements)
+8. [Constraints & Assumptions](#8-constraints--assumptions)
+9. [Out of Scope (MVP)](#9-out-of-scope-mvp)
+10. [High-Level Roadmap & Milestones](#10-high-level-roadmap--milestones)
+11. [Glossary](#11-glossary)
+12. [Success Criteria Sign-off](#12-success-criteria-sign-off)
+
+---
+
+## 1. Executive Summary
+
+Trada is an AI‑driven trading platform that enables users to rent intelligent trading agents, fund dedicated wallets, and automate trades on cryptocurrency markets. The system coordinates wallet operations, market data, AI signal generation, trade execution, rental management, and multi‑channel notifications. The MVP will be delivered as a single Laravel application optimised for shared hosting, using a 15‑minute trading cadence and an event‑driven internal architecture to keep the codebase maintainable.
+
+---
+
+## 2. Problem Statement
+
+Retail cryptocurrency traders often lack the time, expertise, or emotional discipline to trade consistently. Existing automated solutions are either too complex, too expensive, or require significant infrastructure. Trada bridges this gap by offering accessible, AI‑based trading agents that users can rent with minimal technical overhead. The platform must handle reliable deposits, withdrawals, AI signal execution, and trade monitoring while remaining affordable to operate during its early stages.
+
+---
+
+## 3. Target Users & Personas
+
+| Persona | Role | Core Needs |
+|---------|------|------------|
+| **Retail Trader** | End user seeking passive crypto trading | Simple rental process, clear balance view, trustworthy automated trades, minimal jargon. |
+| **Crypto Enthusiast** | More experienced user | Multiple agent options, performance comparison, visibility into trade rationale. |
+| **Platform Admin** | Operator managing the system | Oversight dashboards, failure alerts, manual intervention controls (pause/resume), audit logs. |
+
+---
+
+## 4. Goals & Success Metrics
+
+### Goals
+1. **Fast MVP launch** – Users can deposit, rent agents, and see automated trades within the first quarter.
+2. **Financial safety** – Zero double‑spend or lost funds due to system errors.
+3. **Transparent automation** – Every trade is recorded with clear attribution to the responsible agent.
+4. **Scalable maintainability** – Codebase organised so that adding a new agent or exchange does not require large rewrites.
+
+### Success Metrics (MVP)
+- A user can fund a wallet and receive a deposit confirmation within 3 blockchain confirmations.
+- 95% of scheduled 15‑minute trading cycles execute fully under normal load.
+- Fewer than 1% of trades fail due to system errors (exchange or provider faults excluded).
+- Admin receives alerts for critical failures within 5 minutes of occurrence.
+- Circuit breaker automatically pauses an agent's trading after **3 consecutive** trade execution failures.
+
+---
+
+## 5. Key Features (User Stories & Epics)
+
+### 5.1 Wallet & Deposits
+- As a user, I can create a cryptocurrency wallet for supported networks (e.g., Ethereum, Bitcoin) to receive funds.
+- As a user, I can generate a deposit address for my wallet and share it externally.
+- As a user, my deposit is automatically detected and credited after required blockchain confirmations.
+- As a user, I can view my balance and full transaction history (deposits, withdrawals, internal transfers).
+
+### 5.2 Withdrawals
+- As a user, I can request a withdrawal to an external address.
+- As an admin, I can review, approve, or reject withdrawal requests.
+- As a user, I am notified when my withdrawal is submitted, approved, and completed/failed.
+
+### 5.3 Agent Rental
+- As a user, I can browse available AI trading agents, each with a description and historical performance.
+- As a user, I can rent an agent using funds from my wallet for a predefined period (e.g., 7, 30 days).
+- As a user, I can see the status of my active and expired rentals.
+- As a user, I receive a notification before my rental expires so I can renew.
+
+### 5.4 AI Signal Generation & Trading
+- As a user, I expect my rented agent to generate trading signals every 15 minutes.
+- As a user, I can see a history of executed trades (direction, size, outcome).
+- As a user, I am notified when a trade is executed or if execution fails.
+
+### 5.5 Admin Oversight
+- As an admin, I have a dashboard showing system health, recent failures, and active rentals.
+- As an admin, I can manually pause/resume trading for a specific agent or user.
+- As an admin, I receive alerts for repeated signal generation failures, trade execution failures, or unusual withdrawal activity.
+
+### 5.6 Notifications
+- As a user, I can opt to receive trade alerts, deposit confirmations, and rental expiry notices via Telegram and/or email.
+
+---
+
+## 6. Functional Requirements by Domain
+
+### 6.1 User Management
+- FR‑U01: Support user registration, login, and password reset.
+- FR‑U02: Each user has a single identity linked to all wallets, rentals, and trades.
+- FR‑U03: Admin roles exist with elevated permissions, separate from end users.
+
+### 6.2 Wallet & Ledger
+- FR‑W01: The system maintains an internal ledger as the **canonical source of truth** for balances.
+- FR‑W02: Balance changes only occur through recorded transactions (deposit, withdrawal, adjustment).
+- FR‑W03: Deposit addresses are generated via the configured blockchain gateway and linked to a user's wallet.
+- FR‑W04: All deposit webhooks are validated for signature and idempotency – a given deposit must never be credited twice.
+- FR‑W05: Withdrawal requests progress through states: `requested` → `approved` → `broadcasted` → `completed` (or `failed`/`rejected`).
+- FR‑W06: All financial state transitions are logged immutably for audit purposes.
+
+### 6.3 Rental Management
+- FR‑R01: An agent can be rented for a fixed duration by paying the rental fee from the user's wallet.
+- FR‑R02: A rental has lifecycle states: `pending`, `active`, `paused`, `expired`, `cancelled`.
+- FR‑R03: Trading is only permitted when an agent has at least one active rental for the user.
+- FR‑R04: A rental expiry event stops all associated trading and notifies the user.
+- FR‑R05: Renewal of a rental extends the active period without interruption.
+
+### 6.4 Trading Engine
+- FR‑T01: Trading follows a 15‑minute cycle; each eligible active rental is evaluated once per cycle.
+- FR‑T02: For each rental, the system fetches OHLCV market data, requests an AI signal, validates the signal, and executes a trade if conditions are safe.
+- FR‑T03: Signal validation includes schema checks, sanity bounds (confidence threshold), and per‑agent risk limits.
+- FR‑T04: Trade intent is sent to the exchange via the exchange gateway adapter as a market order.
+- FR‑T05: The system persists the trade record (request/response/status) in the database.
+- FR‑T06: A per‑rental circuit breaker halts trading after a configurable number of consecutive execution failures; manual admin review is required to reset.
+- FR‑T07: Failures in market data or AI signal generation cause that **single rental's** cycle to be skipped for that interval without affecting others; repeated failures are flagged to admins.
+
+### 6.5 AI Signal Handling
+- FR‑AI01: Signal prompts contain relevant market context and agent‑specific instructions.
+- FR‑AI02: AI responses are validated against a strict schema (side: buy/sell/hold, confidence, symbol, rationale).
+- FR‑AI03: An AI call that fails or returns an invalid response must not trigger a trade; it raises a `SignalGenerationFailed` event.
+- FR‑AI04: The AI outcome is recorded alongside the trade for later review.
+
+### 6.6 Notifications
+- FR‑N01: Notifications are delivered via Telegram and email.
+- FR‑N02: Notification triggers include: deposit confirmed, withdrawal completed, rental activated/expired, trade executed, trade failed, system alerts.
+- FR‑N03: Users can manage notification preferences per channel.
+- FR‑N04: Admin receives near‑real‑time alerts for critical failures.
+
+### 6.7 Admin & Compliance
+- FR‑AD01: Admin dashboard displays active rentals, recent trades, system alerts, and performance summaries.
+- FR‑AD02: Admins can view detailed trade logs and financial transactions for any user.
+- FR‑AD03: Platform configuration (circuit breaker thresholds, agent parameters) is manageable via admin panel or secure commands.
+- FR‑AD04: All admin actions are audited.
+
+---
+
+## 7. Non-Functional Requirements
+
+- **NFR‑01 Idempotency**: All operations involving money or trading must be idempotent; duplicate webhooks, job retries, or manual replays must never cause double charges or double trades.
+- **NFR‑02 Performance**: Under normal load (≤100 active rentals), the trading cycle must complete within 10 minutes of its 15‑minute window.
+- **NFR‑03 Availability**: Core web functions (login, wallet view, rental purchase) must be available 99.5% of the time; scheduled background work may have brief gaps acceptable within the 15‑minute cadence.
+- **NFR‑04 Security**:
+  - All secrets stored outside of code (environment variables).
+  - Exchange API keys use IP whitelisting and trade‑only (no withdrawal) permissions.
+  - All provider webhooks verified with signatures and replay protection.
+  - Admin endpoints protected by role‑based access control.
+- **NFR‑05 Maintainability**: Codebase must follow domain‑driven organisation as described in the Architecture Document.
+- **NFR‑06 Deployability**: The entire application must run on shared hosting without Redis, WebSocket servers, or long‑running worker processes.
+- **NFR‑07 Observability**: Key operations log correlation IDs; admin dashboard and alerts provide visibility; a heartbeat mechanism indicates when cron‑based processing stalls.
+
+---
+
+## 8. Constraints & Assumptions
+
+### Constraints
+- **Shared hosting environment** – no Redis, Supervisor, persistent background processes. Background work driven by cron every minute.
+- **Trading cadence** – optimised for 15‑minute candles; sub‑minute trading is not supported.
+- **External APIs** – may be unreliable or rate‑limited; the platform must degrade gracefully.
+- **Database** – single MySQL schema for all data, including queues.
+- **Notifications** – only Telegram and email in MVP.
+
+### Assumptions
+- Users manage their own wallet backups; the platform does not hold private keys for deposit addresses (uses Tatum or similar).
+- Exchange credentials are provided by the platform for automated trading; users do not connect personal exchange accounts in MVP.
+- Initial active rentals ≤100; the database queue with cron workers can handle this load.
+
+---
+
+## 9. Out of Scope (MVP)
+
+- Real‑time streaming price data or WebSocket feeds
+- User‑submitted custom trading strategies
+- Multi‑exchange support beyond the initial one (Binance via CCXT)
+- KYC/AML integration
+- Mobile application (responsive web only)
+- Multi‑language support
+- Affiliate or referral programmes
+- Automated tax reporting
+
+---
+
+## 10. High‑Level Roadmap & Milestones
+
+| Phase | Milestone | Key Additions |
+|-------|-----------|---------------|
+| **Phase 1 (MVP)** | Launch on shared hosting | All features in this PRD; database queue; cron workers; Tatum/Binance adapters |
+| **Phase 2** | VPS migration & performance | Redis cache & queues, Horizon, dedicated workers, improved monitoring |
+| **Phase 3** | Real‑time capabilities | WebSocket market data, faster reconciliation, live dashboards |
+| **Phase 4** | Compliance & expansion | KYC/AML, transaction monitoring, additional exchanges, stronger audit |
+| **Phase 5** | Selective service extraction | Extract notification, market data, or AI engine if growth demands it |
+
+---
+
+## 11. Glossary
+
+| Term | Definition |
+|------|------------|
+| **Agent** | An AI‑powered trading strategy that can be rented by a user. |
+| **Rental** | The active relationship between a user and an agent for a fixed period, enabling automated trading. |
+| **Signal** | Structured output from the AI (side, confidence, symbol, rationale) used to make a trade decision. |
+| **Canonical wallet ledger** | The internal transaction log that is the sole source of truth for user balances. |
+| **Circuit breaker** | A safety mechanism that stops automated trading for a specific rental after a series of failures. |
+| **Idempotency** | The property that an operation can be executed multiple times without changing the result beyond the first application. |
+| **Adapter** | An implementation of an interface that wraps an external provider (e.g., Tatum, CCXT). |
+| **Projection / Read model** | A precomputed view of data optimised for fast queries without heavy joins. |
+
+---
+
+## 12. Success Criteria Sign‑off
+
+Before MVP launch, the following must be verified:
+
+- [ ] A deposit from an external wallet is correctly detected, credited, and displayed within 3 blockchain confirmations.
+- [ ] Two identical deposit webhooks do not credit the user twice.
+- [ ] A withdrawal request follows the correct state flow and funds are sent upon admin approval.
+- [ ] An active rental leads to at least one trade per 15‑minute cycle when market conditions and AI signal allow.
+- [ ] Consecutive trade execution failures correctly trigger the circuit breaker for that rental only.
+- [ ] Admin receives a notification when the circuit breaker trips.
+- [ ] The system operates entirely within shared hosting constraints without manual intervention for at least 48 hours.
+
+---
+
+**Document Approvals**
+
+*Product Manager:* _______________  
+*Tech Lead:* _______________  
+*Date:* _______________
