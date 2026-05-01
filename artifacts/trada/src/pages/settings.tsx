@@ -1,18 +1,21 @@
 import { ProtectedRoute } from "@/lib/auth";
 import { Layout } from "@/components/layout";
-import { 
-  useGetNotificationPreferences, 
-  useUpdateNotificationPreferences, 
-  getGetNotificationPreferencesQueryKey 
+import {
+  useGetNotificationPreferences,
+  useUpdateNotificationPreferences,
 } from "@workspace/api-client-react";
+import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { User, Bell, Lock, Mail, MessageSquare, ShieldAlert } from "lucide-react";
 
 export default function SettingsPage() {
   return (
@@ -25,7 +28,8 @@ export default function SettingsPage() {
 }
 
 function SettingsContent() {
-  const { data: prefs, isLoading, refetch } = useGetNotificationPreferences({ query: { queryKey: getGetNotificationPreferencesQueryKey() } });
+  const { user } = useAuth();
+  const { data: prefs, isLoading, refetch } = useGetNotificationPreferences();
   const updateMutation = useUpdateNotificationPreferences();
   const { toast } = useToast();
 
@@ -62,65 +66,148 @@ function SettingsContent() {
       { data: formData },
       {
         onSuccess: () => {
-          toast({ title: "Settings Saved", description: "Notification preferences updated." });
+          toast({ title: "Settings Saved", description: "Notification preferences updated successfully." });
           refetch();
         },
         onError: (err: any) => {
-          toast({ title: "Error", description: err?.data?.message || err?.message || "Failed to save settings", variant: "destructive" });
+          toast({ title: "Error", description: err?.data?.message || "Failed to save settings", variant: "destructive" });
         }
       }
     );
   };
 
-  const handleToggle = (field: keyof typeof formData) => (checked: boolean) => {
+  const toggle = (field: keyof typeof formData) => (checked: boolean) => {
     setFormData(prev => ({ ...prev, [field]: checked }));
   };
 
+  const NotifRow = ({ label, desc, field }: { label: string; desc?: string; field: keyof typeof formData }) => (
+    <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0 border-b last:border-0">
+      <div className="space-y-0.5 flex-1">
+        <Label className="text-sm cursor-pointer">{label}</Label>
+        {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
+      </div>
+      <Switch checked={!!formData[field]} onCheckedChange={toggle(field)} />
+    </div>
+  );
+
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground">Manage your account preferences and notifications.</p>
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h2>
+        <p className="text-muted-foreground text-sm">Manage your account and notifications.</p>
       </div>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base">Account Profile</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary shrink-0">
+              {user?.name?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+            <div>
+              <p className="font-semibold">{user?.name}</p>
+              <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <Badge variant={user?.role === "admin" ? "default" : "secondary"} className="mt-1 text-xs">
+                {user?.role === "admin" ? <ShieldAlert className="h-3 w-3 mr-1" /> : null}
+                {user?.role}
+              </Badge>
+            </div>
+          </div>
+          <Separator />
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-sm">Display Name</Label>
+              <Input id="name" defaultValue={user?.name} disabled placeholder="Your name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm">Email Address</Label>
+              <Input id="email" defaultValue={user?.email} disabled placeholder="your@email.com" />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">Profile editing coming soon. Contact support to update your details.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base">Security</CardTitle>
+          </div>
+          <CardDescription>Manage your account security settings.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-muted/30">
+            <div>
+              <p className="text-sm font-medium">Password</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Last changed: unknown</p>
+            </div>
+            <Button variant="outline" size="sm" disabled>Change Password</Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {isLoading ? (
-        <Card><CardContent className="p-6 space-y-4"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></CardContent></Card>
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </CardContent>
+        </Card>
       ) : (
-        <div className="space-y-6">
+        <>
           <Card>
-            <CardHeader>
-              <CardTitle>Delivery Methods</CardTitle>
-              <CardDescription>How would you like to receive alerts?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive alerts at your registered email address.</p>
-                </div>
-                <Switch checked={formData.emailEnabled} onCheckedChange={handleToggle("emailEnabled")} />
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Notification Channels</CardTitle>
               </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Telegram Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Receive instant messages via Telegram bot.</p>
-                  </div>
-                  <Switch checked={formData.telegramEnabled} onCheckedChange={handleToggle("telegramEnabled")} />
-                </div>
-                
-                {formData.telegramEnabled && (
-                  <div className="pl-6 border-l-2 ml-2 space-y-2">
-                    <Label htmlFor="chatId">Telegram Chat ID</Label>
-                    <div className="flex max-w-sm gap-2">
-                      <Input 
-                        id="chatId" 
-                        value={formData.telegramChatId} 
-                        onChange={(e) => setFormData(prev => ({ ...prev, telegramChatId: e.target.value }))}
-                        placeholder="e.g. 123456789"
-                      />
+              <CardDescription>Choose how you receive alerts.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-0 divide-y">
+              <div className="py-3 first:pt-0">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Mail className="h-4 w-4 text-primary" />
                     </div>
+                    <div>
+                      <Label className="text-sm cursor-pointer">Email</Label>
+                      <p className="text-xs text-muted-foreground">Alerts sent to {user?.email}</p>
+                    </div>
+                  </div>
+                  <Switch checked={formData.emailEnabled} onCheckedChange={toggle("emailEnabled")} />
+                </div>
+              </div>
+              <div className="py-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-[#229ED9]/10 flex items-center justify-center">
+                      <MessageSquare className="h-4 w-4 text-[#229ED9]" />
+                    </div>
+                    <div>
+                      <Label className="text-sm cursor-pointer">Telegram</Label>
+                      <p className="text-xs text-muted-foreground">Instant messages via bot</p>
+                    </div>
+                  </div>
+                  <Switch checked={formData.telegramEnabled} onCheckedChange={toggle("telegramEnabled")} />
+                </div>
+                {formData.telegramEnabled && (
+                  <div className="mt-3 ml-11 space-y-1.5">
+                    <Label htmlFor="chatId" className="text-xs">Telegram Chat ID</Label>
+                    <Input
+                      id="chatId"
+                      value={formData.telegramChatId}
+                      onChange={e => setFormData(prev => ({ ...prev, telegramChatId: e.target.value }))}
+                      placeholder="e.g. 123456789"
+                      className="h-8 text-sm"
+                    />
                     <p className="text-xs text-muted-foreground">Message @TradaBot and send /start to get your ID.</p>
                   </div>
                 )}
@@ -129,43 +216,28 @@ function SettingsContent() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Alert Events</CardTitle>
-              <CardDescription>Select which events trigger a notification.</CardDescription>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Alert Events</CardTitle>
+              </div>
+              <CardDescription>Choose which events trigger a notification.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between border-b pb-4">
-                <Label className="flex-1 cursor-pointer">Circuit Breaker Tripped</Label>
-                <Switch checked={formData.notifyOnCircuitBreaker} onCheckedChange={handleToggle("notifyOnCircuitBreaker")} />
-              </div>
-              <div className="flex items-center justify-between border-b pb-4">
-                <Label className="flex-1 cursor-pointer">Trade Execution Failed</Label>
-                <Switch checked={formData.notifyOnTradeFailed} onCheckedChange={handleToggle("notifyOnTradeFailed")} />
-              </div>
-              <div className="flex items-center justify-between border-b pb-4">
-                <Label className="flex-1 cursor-pointer">Trade Executed Successfully</Label>
-                <Switch checked={formData.notifyOnTradeExecuted} onCheckedChange={handleToggle("notifyOnTradeExecuted")} />
-              </div>
-              <div className="flex items-center justify-between border-b pb-4">
-                <Label className="flex-1 cursor-pointer">Rental Expiry Warning</Label>
-                <Switch checked={formData.notifyOnRentalExpiry} onCheckedChange={handleToggle("notifyOnRentalExpiry")} />
-              </div>
-              <div className="flex items-center justify-between border-b pb-4">
-                <Label className="flex-1 cursor-pointer">Deposits Confirmed</Label>
-                <Switch checked={formData.notifyOnDeposit} onCheckedChange={handleToggle("notifyOnDeposit")} />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label className="flex-1 cursor-pointer">Withdrawals Completed</Label>
-                <Switch checked={formData.notifyOnWithdrawal} onCheckedChange={handleToggle("notifyOnWithdrawal")} />
-              </div>
+            <CardContent className="space-y-0">
+              <NotifRow label="Circuit Breaker Tripped" desc="Notified when an agent's circuit breaker activates." field="notifyOnCircuitBreaker" />
+              <NotifRow label="Trade Execution Failed" desc="Notified when a trade fails to execute." field="notifyOnTradeFailed" />
+              <NotifRow label="Trade Executed" desc="Notified on every successful trade." field="notifyOnTradeExecuted" />
+              <NotifRow label="Rental Expiry Warning" desc="Notified 3 days before a rental expires." field="notifyOnRentalExpiry" />
+              <NotifRow label="Deposit Confirmed" desc="Notified when a deposit is credited." field="notifyOnDeposit" />
+              <NotifRow label="Withdrawal Completed" desc="Notified when a withdrawal is processed." field="notifyOnWithdrawal" />
             </CardContent>
-            <CardFooter className="bg-muted/50 py-4 px-6 flex justify-end">
+            <CardFooter className="flex justify-end bg-muted/30 rounded-b-lg py-3 px-6">
               <Button onClick={handleSave} disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? "Saving..." : "Save Preferences"}
+                {updateMutation.isPending ? "Saving…" : "Save Preferences"}
               </Button>
             </CardFooter>
           </Card>
-        </div>
+        </>
       )}
     </div>
   );

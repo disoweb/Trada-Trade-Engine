@@ -41,15 +41,15 @@ function TradeDetailContent({ tradeId }: { tradeId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-3">
         <Link href="/trades">
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon" className="shrink-0 mt-0.5">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Trade Details</h2>
-          <p className="text-muted-foreground font-mono text-sm">{trade.id}</p>
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Trade Details</h2>
+          <p className="text-muted-foreground font-mono text-xs truncate">{trade.id}</p>
         </div>
       </div>
 

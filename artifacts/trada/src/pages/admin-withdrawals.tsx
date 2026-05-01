@@ -1,24 +1,24 @@
 import { ProtectedRoute } from "@/lib/auth";
 import { Layout } from "@/components/layout";
-import { 
-  useListAdminWithdrawals, 
-  useApproveWithdrawal, 
+import {
+  useListAdminWithdrawals,
+  useApproveWithdrawal,
   useRejectWithdrawal,
   ListAdminWithdrawalsStatus
 } from "@workspace/api-client-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Check, X } from "lucide-react";
+import { Check, X, Clock, Wallet, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export default function AdminWithdrawalsPage() {
   return (
@@ -43,166 +43,145 @@ function AdminWithdrawalsContent() {
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value);
-  };
+  const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
 
   const getStatusBadge = (s: string) => {
     switch (s) {
-      case "requested": return <Badge variant="secondary" className="bg-warning/20 text-warning hover:bg-warning/20">Pending Approval</Badge>;
-      case "approved": return <Badge variant="outline" className="text-primary">Approved</Badge>;
-      case "broadcasted": return <Badge variant="outline">Broadcasted</Badge>;
-      case "completed": return <Badge variant="default" className="bg-success text-success-foreground">Completed</Badge>;
-      case "failed": 
-      case "rejected": return <Badge variant="destructive" className="capitalize">{s}</Badge>;
-      default: return <Badge variant="outline">{s}</Badge>;
+      case "requested": return <Badge className="bg-warning/15 text-warning border-warning/20">Pending</Badge>;
+      case "approved": return <Badge className="bg-primary/10 text-primary border-primary/20">Approved</Badge>;
+      case "completed": return <Badge className="bg-success/15 text-success border-success/20">Completed</Badge>;
+      case "failed": return <Badge variant="destructive">Failed</Badge>;
+      case "rejected": return <Badge variant="destructive">Rejected</Badge>;
+      default: return <Badge variant="secondary">{s}</Badge>;
     }
   };
 
-  const handleApprove = (id: string) => {
-    approveMutation.mutate(
-      { withdrawalId: id },
-      {
-        onSuccess: () => {
-          toast({ title: "Approved", description: "Withdrawal approved successfully." });
-          refetch();
-        },
-        onError: (err: any) => {
-          toast({ title: "Error", description: err?.data?.message || "Failed to approve", variant: "destructive" });
-        }
-      }
-    );
+  const handleApprove = (withdrawalId: string) => {
+    approveMutation.mutate({ withdrawalId }, {
+      onSuccess: () => { toast({ title: "Approved", description: "Withdrawal approved." }); refetch(); },
+      onError: (e: any) => { toast({ title: "Error", description: e?.data?.message || "Failed", variant: "destructive" }); }
+    });
   };
 
-  const handleReject = () => {
-    if (!rejectId) return;
-    rejectMutation.mutate(
-      { withdrawalId: rejectId, data: { reason: rejectReason || "Rejected by admin" } },
-      {
-        onSuccess: () => {
-          toast({ title: "Rejected", description: "Withdrawal rejected." });
-          setRejectId(null);
-          setRejectReason("");
-          refetch();
-        },
-        onError: (err: any) => {
-          toast({ title: "Error", description: err?.data?.message || "Failed to reject", variant: "destructive" });
-        }
-      }
-    );
+  const handleReject = (withdrawalId: string) => {
+    rejectMutation.mutate({ withdrawalId, data: { reason: rejectReason } }, {
+      onSuccess: () => { toast({ title: "Rejected", description: "Withdrawal rejected." }); refetch(); setRejectId(null); setRejectReason(""); },
+      onError: (e: any) => { toast({ title: "Error", description: e?.data?.message || "Failed", variant: "destructive" }); }
+    });
   };
+
+  const items = withdrawals?.items ?? [];
+  const pendingCount = items.filter(w => w.status === "requested").length;
+  const pendingTotal = items.filter(w => w.status === "requested").reduce((s, w) => s + w.amount, 0);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Withdrawals</h2>
-          <p className="text-muted-foreground">Review and process user withdrawal requests.</p>
-        </div>
-        <div className="w-full sm:w-48">
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filter status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="requested">Pending Approval</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Withdrawals</h2>
+          <p className="text-muted-foreground text-sm">Review and process withdrawal requests.</p>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-6 space-y-4">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : (
-            <div className="rounded-md border-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50 hover:bg-muted/50">
-                    <TableHead>Date</TableHead>
-                    <TableHead>User ID</TableHead>
-                    <TableHead>Network / Address</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {withdrawals?.items?.length ? (
-                    withdrawals.items.map((req) => (
-                      <TableRow key={req.id}>
-                        <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                          {format(new Date(req.createdAt), "MMM dd, HH:mm")}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{req.userId.slice(0,8)}...</TableCell>
-                        <TableCell>
-                          <div className="font-bold text-xs">{req.network}</div>
-                          <div className="font-mono text-xs text-muted-foreground truncate max-w-[150px] lg:max-w-[250px]" title={req.address}>
-                            {req.address}
+      {pendingCount > 0 && (
+        <div className="flex items-start gap-3 p-4 bg-warning/10 border border-warning/20 rounded-lg">
+          <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-warning">{pendingCount} pending withdrawal{pendingCount !== 1 ? "s" : ""}</p>
+            <p className="text-warning/80 mt-0.5">{fmt(pendingTotal)} total awaiting review.</p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Requests</SelectItem>
+            <SelectItem value="requested">Pending</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground">{items.length} request{items.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
+        </div>
+      ) : items.length ? (
+        <div className="space-y-3">
+          {items.map(w => (
+            <Card key={w.id} className={cn(w.status === "requested" && "border-warning/30")}>
+              <CardContent className="py-4">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
+                      <Wallet className="h-5 w-5 text-warning" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold font-mono-num text-lg">{fmt(w.amount)}</span>
+                        {getStatusBadge(w.status)}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {w.network} · to <span className="font-mono">{w.address?.slice(0, 12)}…</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Clock className="h-3 w-3" />
+                        {formatDistanceToNow(new Date(w.createdAt), { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                  {w.status === "requested" && (
+                    <div className="flex gap-2 sm:shrink-0">
+                      <Button size="sm" onClick={() => handleApprove(w.id)} disabled={approveMutation.isPending} className="flex-1 sm:flex-none">
+                        <Check className="h-4 w-4 mr-1" />Approve
+                      </Button>
+                      <Dialog open={rejectId === w.id} onOpenChange={open => { if (!open) { setRejectId(null); setRejectReason(""); } }}>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline" className="flex-1 sm:flex-none text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setRejectId(w.id)}>
+                            <X className="h-4 w-4 mr-1" />Reject
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Reject Withdrawal</DialogTitle>
+                            <DialogDescription>Provide a reason for rejecting this {fmt(w.amount)} withdrawal request.</DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-2 py-2">
+                            <Label>Reason</Label>
+                            <Input value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="e.g. Suspicious activity detected" />
                           </div>
-                        </TableCell>
-                        <TableCell className="text-right font-mono-num font-medium text-destructive">
-                          -{formatCurrency(req.amount)}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(req.status)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {req.status === 'requested' && (
-                            <div className="flex justify-end gap-2">
-                              <Button size="icon" variant="outline" className="h-8 w-8 text-success hover:bg-success hover:text-success-foreground" onClick={() => handleApprove(req.id)} disabled={approveMutation.isPending}>
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              
-                              <Dialog open={rejectId === req.id} onOpenChange={(open) => !open && setRejectId(null)}>
-                                <DialogTrigger asChild>
-                                  <Button size="icon" variant="outline" className="h-8 w-8 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setRejectId(req.id)}>
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Reject Withdrawal</DialogTitle>
-                                    <DialogDescription>Please provide a reason for rejecting this withdrawal.</DialogDescription>
-                                  </DialogHeader>
-                                  <div className="py-4">
-                                    <Label htmlFor="reason">Reason</Label>
-                                    <Input id="reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="e.g. Invalid address format" />
-                                  </div>
-                                  <DialogFooter>
-                                    <Button variant="outline" onClick={() => setRejectId(null)}>Cancel</Button>
-                                    <Button variant="destructive" onClick={handleReject} disabled={rejectMutation.isPending || !rejectReason}>Reject</Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                        No withdrawals found.
-                      </TableCell>
-                    </TableRow>
+                          <DialogFooter className="gap-2">
+                            <Button variant="outline" onClick={() => setRejectId(null)}>Cancel</Button>
+                            <Button variant="destructive" onClick={() => handleReject(w.id)} disabled={!rejectReason || rejectMutation.isPending}>
+                              {rejectMutation.isPending ? "Rejecting…" : "Confirm Reject"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+            <Wallet className="h-12 w-12 opacity-20" />
+            <p className="font-medium">No withdrawals found</p>
+            <p className="text-sm">All clear — no pending requests.</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

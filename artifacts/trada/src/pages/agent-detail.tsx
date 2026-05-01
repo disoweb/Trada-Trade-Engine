@@ -85,23 +85,23 @@ function AgentDetailContent({ agentId }: { agentId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-3">
         <Link href="/agents">
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon" className="shrink-0 mt-0.5">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div className="flex-1 flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-              <Cpu className="h-8 w-8 text-primary" /> {agent.name}
+        <div className="flex-1 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 min-w-0">
+          <div className="min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+              <Cpu className="h-6 w-6 text-primary shrink-0" /> <span className="truncate">{agent.name}</span>
             </h2>
-            <p className="text-muted-foreground">{agent.symbol} • {agent.strategy}</p>
+            <p className="text-muted-foreground text-sm">{agent.symbol} · {agent.strategy}</p>
           </div>
-          <div>
+          <div className="shrink-0">
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button size="lg">Rent Agent</Button>
+                <Button size="default" className="w-full sm:w-auto">Rent Agent</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>

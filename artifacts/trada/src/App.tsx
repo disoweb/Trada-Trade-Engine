@@ -17,6 +17,7 @@ import RentalsPage from "@/pages/rentals";
 import RentalDetailPage from "@/pages/rental-detail";
 import TradesPage from "@/pages/trades";
 import TradeDetailPage from "@/pages/trade-detail";
+import PortfolioPage from "@/pages/portfolio";
 import SettingsPage from "@/pages/settings";
 import AdminDashboardPage from "@/pages/admin";
 import AdminUsersPage from "@/pages/admin-users";
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/rentals/:rentalId" component={RentalDetailPage} />
       <Route path="/trades" component={TradesPage} />
       <Route path="/trades/:tradeId" component={TradeDetailPage} />
+      <Route path="/portfolio" component={PortfolioPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/admin" component={AdminDashboardPage} />
       <Route path="/admin/users" component={AdminUsersPage} />

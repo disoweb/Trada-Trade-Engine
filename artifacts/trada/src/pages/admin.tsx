@@ -43,17 +43,15 @@ function AdminContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Admin Console</h2>
-          <p className="text-muted-foreground">Platform health and high-level metrics.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Console</h2>
+          <p className="text-muted-foreground text-sm">Platform health and high-level metrics.</p>
         </div>
-        <div>
-          {getHealthBadge(dashboard?.systemHealth)}
-        </div>
+        <div>{getHealthBadge(dashboard?.systemHealth)}</div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
